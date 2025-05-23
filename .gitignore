@@ -1,0 +1,34 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Google Apps Script specific
+node_modules/
+*.log
+.env
+*.json
+!.clasp.json
+
+# Local development files
+*.local.*
+*.dev.*
+
+# Logs
+logs
+*.log
+npm-debug.log*
