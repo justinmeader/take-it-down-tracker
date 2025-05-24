@@ -7,6 +7,7 @@
  * Logs and shows results in modal, and logs to Change Log for each imported row.
  */
 function importToTracker() {
+  try {
   const {
     SHEET_INBOX, SHEET_TRACKER, INBOX_HEADERS, TRACKER_HEADERS, TRACKER_COL,
     assert, readConfig, getNextId
@@ -25,7 +26,7 @@ function importToTracker() {
   const reviewedCol = hdrMap['Reviewed?'];
   const urlCol = hdrMap['URL'];
   const importedCol = hdrMap['Imported?'];
-  const dmcaCol = hdrMap['Contact Email']; // renamed from 'DMCA'
+  const dmcaCol = hdrMap['Contact Email']; // renamed from 'Contact Email'
   const domainTagCol = hdrMap['Domain Tag'];
 
   let toImport = [];
@@ -82,7 +83,7 @@ function importToTracker() {
     trackerRow[TRACKER_COL.ID] = id;
     trackerRow[TRACKER_COL.Domain] = rowObj.Domain;
     trackerRow[TRACKER_COL.URL] = rowObj.URL;
-    trackerRow[TRACKER_COL.Contact_Email] = rowObj.ContactEmail; // renamed from DMCA_Contact
+    trackerRow[TRACKER_COL.Contact_Email] = rowObj.ContactEmail; // renamed from Contact_Email
     trackerRow[TRACKER_COL.Media_Type] = rowObj.MediaType;
 
     toImport.push(trackerRow);
@@ -109,37 +110,41 @@ function importToTracker() {
     errors.push(`Duplicate IDs generated (unexpected!): ${idDupes.join(', ')}`);
   }
 
-  // If any errors, abort import and show details
-  if (errors.length) {
+    // If any errors, abort import and show details
+    if (errors.length) {
+      showBatchResultModal(
+        "Import Blocked: Validation Errors",
+        `Errors detected, import aborted. Please fix these issues and retry.`,
+        errors
+      );
+      logError('ImportToTracker', '', `Blocked: ${errors.length} validation errors`);
+      return;
+    }
+
+    // --- Batch append to Tracker ---
+    if (toImport.length) {
+      tracker.getRange(tracker.getLastRow()+1, 1, toImport.length, toImport[0].length).setValues(toImport);
+    }
+
+    // --- Batch mark imported ---
+    if (markImported.length) {
+      const col = importedCol+1;
+      const range = inbox.getRangeList(markImported.map(r=>`R${r}C${col}`));
+      range.setValue("Imported");
+    }
+
+    // --- Logging and UI summary ---
+    logInfo('ImportToTracker', '', `Imported ${toImport.length} new row(s). Warnings: ${warnings.length}`);
+    if (changeLogEntries.length) {
+      logBatchChange(changeLogEntries);
+    }
     showBatchResultModal(
-      "Import Blocked: Validation Errors",
-      `Errors detected, import aborted. Please fix these issues and retry.`,
-      errors
+      "Import to Tracker Complete",
+      `Imported ${toImport.length} new row(s) to Tracker.`,
+      warnings
     );
-    logError('ImportToTracker', '', `Blocked: ${errors.length} validation errors`);
-    return;
+  } catch (e) {
+    logError('importToTracker', '', e.message);
+    SpreadsheetApp.getUi().alert('Error in importToTracker: ' + e.message);
   }
-
-  // --- Batch append to Tracker ---
-  if (toImport.length) {
-    tracker.getRange(tracker.getLastRow()+1, 1, toImport.length, toImport[0].length).setValues(toImport);
-  }
-
-  // --- Batch mark imported ---
-  if (markImported.length) {
-    const col = importedCol+1;
-    const range = inbox.getRangeList(markImported.map(r=>`R${r}C${col}`));
-    range.setValue("Imported");
-  }
-
-  // --- Logging and UI summary ---
-  logInfo('ImportToTracker', '', `Imported ${toImport.length} new row(s). Warnings: ${warnings.length}`);
-  if (changeLogEntries.length) {
-    logBatchChange(changeLogEntries);
-  }
-  showBatchResultModal(
-    "Import to Tracker Complete",
-    `Imported ${toImport.length} new row(s) to Tracker.`,
-    warnings
-  );
 }

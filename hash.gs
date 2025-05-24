@@ -6,14 +6,15 @@
  * Logs the result and shows a batch result modal.
  */
 function bulkHashExistingDownloads() {
-  const {
-    SHEET_TRACKER, TRACKER_COL, assert, readConfig
-  } = getGlobals();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tracker = ss.getSheetByName(SHEET_TRACKER);
-  assert(tracker, 'Tracker sheet missing');
-  const data = tracker.getDataRange().getValues();
-  if (!data || data.length < 2) return;
+  try {
+    const {
+      SHEET_TRACKER, TRACKER_COL, assert, readConfig
+    } = getGlobals();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tracker = ss.getSheetByName(SHEET_TRACKER);
+    assert(tracker, 'Tracker sheet missing');
+    const data = tracker.getDataRange().getValues();
+    if (!data || data.length < 2) return;
 
   const DRIVE_LINK_COL = TRACKER_COL.Drive_Link;
   const HASH_COL = TRACKER_COL.Hash;
@@ -25,6 +26,14 @@ function bulkHashExistingDownloads() {
   let hashed = 0, skipped = 0, errors = 0;
   let reasons = [];
 
+  // Extracts a Drive file ID from a URL.
+  // @param {string} link
+  // @returns {string|null}
+  function extractFileId(link) {
+    const match = link.match(/[-\w]{25,}/);
+    return match ? match[0] : null;
+  }
+
   for (let i=1; i<data.length; ++i) {
     const row = data[i];
     const driveLink = row[DRIVE_LINK_COL];
@@ -34,16 +43,6 @@ function bulkHashExistingDownloads() {
     if (row[HASH_COL]) { skipped++; continue; }
 
     try {
-      /**
-       * Extracts a Drive file ID from a URL.
-       * @param {string} link
-       * @returns {string|null}
-       */
-      function extractFileId(link) {
-        const match = link.match(/[-\w]{25,}/);
-        return match ? match[0] : null;
-      }
-
       // Get file by ID
       const fileId = extractFileId(driveLink);
       if (!fileId) throw new Error('No valid fileId in Drive link');

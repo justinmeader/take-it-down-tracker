@@ -28,34 +28,101 @@ const SHEET_PROTECTED = ['Dashboard', 'URL Dump Zone', 'Temp'];
  * @constant
  * @type {string[]}
  */
+/**
+ * INBOX_HEADERS: Defines the columns for the Inbox sheet. Used when importing new takedown requests from email or external sources. Always update this array if the Inbox sheet schema changes.
+ * @constant
+ * @type {string[]}
+ */
 const INBOX_HEADERS = [
-  'Reviewed?', 'URL', 'Intake Type', 'DMCA', 'Domain Tag', 'Notes', 'Imported?'
+  'Reviewed?', 'URL', 'Intake Type', 'Contact Email', 'Domain Tag', 'Notes', 'Imported?'
 ];
+
+/**
+ * TRACKER_HEADERS: Canonical columns for the main Tracker sheet. This is the core working sheet for takedown tracking. All Tracker sheet operations (import, migration, export) reference this array.
+ * @constant
+ * @type {string[]}
+ */
 const TRACKER_HEADERS = [
-  'ID', 'Domain', 'URL', 'DMCA Contact', 'WHOIS Host', 'Date Sent', 'Deadline',
+  'ID', 'Domain', 'URL', 'Contact Email', 'WHOIS Host', 'Date Sent', 'Deadline',
   'Current Status', 'Media Type', 'Drive Link', 'Download Status', 'Hash', 'Notes'
 ];
+
+/**
+ * ARCHIVE_HEADERS: Columns for the Archive sheet, which stores completed or archived takedown records. Should generally match TRACKER_HEADERS, with additional fields as needed.
+ * @constant
+ * @type {string[]}
+ */
 const ARCHIVE_HEADERS = [
-  'ID', 'Domain', 'URL', 'DMCA Contact', 'WHOIS Host', 'Date Sent', 'Deadline',
+  'ID', 'Domain', 'URL', 'Contact Email', 'WHOIS Host', 'Date Sent', 'Deadline',
   'Current Status', 'Media Type', 'Drive Link', 'Download Status', 'Hash', 'Notes', 'Date Archived'
 ];
+
+/**
+ * DIRECTORY_HEADERS: Columns for the Directory sheet, which contains registrar/domain contact information for takedown actions.
+ * @constant
+ * @type {string[]}
+ */
 const DIRECTORY_HEADERS = [
   'Domain', 'Registrar', 'Abuse Contact', 'Country', 'Notes', 'Last Checked'
 ];
+
+/**
+ * STATUS_HEADERS: Defines the possible statuses and their metadata for takedown actions (used for dropdowns, validation, etc).
+ * @constant
+ * @type {string[]}
+ */
 const STATUS_HEADERS = [
   'Heartbeat', 'Last Run', 'Last Import', 'Last Download', 'Last Hash', 'Last Audit', 'Last Archive'
 ];
+
+/**
+ * LOGS_HEADERS: Columns for the Logs sheet, used for structured logging of all automated actions and errors.
+ * @constant
+ * @type {string[]}
+ */
 const LOGS_HEADERS = [
   'Timestamp', 'Operation', 'ID', 'Level', 'Message'
 ];
+
+/**
+ * SETTINGS_HEADERS: Defines the schema for the Settings sheet, where configuration and toggles are stored.
+ * @constant
+ * @type {string[]}
+ */
 const SETTINGS_HEADERS = [
   'Key', 'Value'
 ];
+
+/**
+ * SEARCH_DEINDEX_HEADERS: Schema for the Search Deindex sheet, tracking search engine removal requests.
+ * @constant
+ * @type {string[]}
+ */
 const SEARCH_DEINDEX_HEADERS = [
   'Search Engine', 'URL', 'Date Requested', 'Status', 'Notes'
 ];
+
+/**
+ * TRIAGE_HEADERS: Columns for the Triage sheet, used for initial review and flagging of potential takedown targets.
+ * @constant
+ * @type {string[]}
+ */
 const TRIAGE_HEADERS = [
   'Flagged?', 'URL', 'Flag Type', 'Reason', 'Notes'
+];
+
+/**
+ * Change Log sheet headers
+ * @constant
+ * @type {string[]}
+ */
+/**
+ * CHANGE_LOG_HEADERS: Defines the schema for the Change Log sheet, which records all changes to takedown records for audit purposes.
+ * @constant
+ * @type {string[]}
+ */
+const CHANGE_LOG_HEADERS = [
+  'Timestamp', 'Action', 'Tracker ID', 'Domain', 'URL', 'Message'
 ];
 
 /**
@@ -67,7 +134,7 @@ const TRACKER_COL = {
   ID: 0,
   Domain: 1,
   URL: 2,
-  DMCA_Contact: 3,
+  Contact_Email: 3,
   WHOIS_Host: 4,
   Date_Sent: 5,
   Deadline: 6,
@@ -152,29 +219,40 @@ function assert(condition, message) {
  */
 let CONFIG_CACHE = null;
 function readConfig(force) {
-  if (CONFIG_CACHE && !force) return CONFIG_CACHE;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const settings = ss.getSheetByName(SHEET_SETTINGS);
-  assert(settings, 'Settings sheet missing');
-  const kv = settings.getRange(2,1,settings.getLastRow()-1,2).getValues();
-  const cfg = {};
-  kv.forEach(([k,v]) => { if(k) cfg[k] = v; });
-  // Defaults
-  cfg[SETTING_BATCH_SIZE]        = parseInt(cfg[SETTING_BATCH_SIZE])    || 20;
-  cfg[SETTING_DOWNLOAD_ROOT]     = cfg[SETTING_DOWNLOAD_ROOT]           || 'Take It Down Evidence';
-  cfg[SETTING_DOWNLOAD_INTERVAL] = parseInt(cfg[SETTING_DOWNLOAD_INTERVAL]) || 15;
-  cfg[SETTING_DATE_FORMAT]       = cfg[SETTING_DATE_FORMAT]             || 'yyyy-MM-dd';
-  cfg[SETTING_EMAIL_SENDER]      = cfg[SETTING_EMAIL_SENDER]            || Session.getActiveUser().getEmail();
-  cfg[SETTING_DRY_RUN]           = !!cfg[SETTING_DRY_RUN];
-  CONFIG_CACHE = cfg;
-  return cfg;
+  try {
+    if (CONFIG_CACHE && !force) return CONFIG_CACHE;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const settings = ss.getSheetByName(SHEET_SETTINGS);
+    assert(settings, 'Settings sheet missing');
+    const kv = settings.getRange(2,1,settings.getLastRow()-1,2).getValues();
+    const cfg = {};
+    kv.forEach(([k,v]) => { if(k) cfg[k] = v; });
+    // Defaults
+    cfg[SETTING_BATCH_SIZE]        = parseInt(cfg[SETTING_BATCH_SIZE])    || 20;
+    cfg[SETTING_DOWNLOAD_ROOT]     = cfg[SETTING_DOWNLOAD_ROOT]           || 'Take It Down Evidence';
+    cfg[SETTING_DOWNLOAD_INTERVAL] = parseInt(cfg[SETTING_DOWNLOAD_INTERVAL]) || 15;
+    cfg[SETTING_DATE_FORMAT]       = cfg[SETTING_DATE_FORMAT]             || 'yyyy-MM-dd';
+    cfg[SETTING_EMAIL_SENDER]      = cfg[SETTING_EMAIL_SENDER]            || Session.getActiveUser().getEmail();
+    cfg[SETTING_DRY_RUN]           = !!cfg[SETTING_DRY_RUN];
+    CONFIG_CACHE = cfg;
+    return cfg;
+  } catch (e) {
+    logError('readConfig', '', e.message);
+    SpreadsheetApp.getUi().alert('Error reading config: ' + e.message);
+    return {};
+  }
 }
 
 /**
  * Clears the config cache (forces reload on next readConfig call).
  */
 function flushConfigCache() {
-  CONFIG_CACHE = null;
+  try {
+    CONFIG_CACHE = null;
+  } catch (e) {
+    logError('flushConfigCache', '', e.message);
+    SpreadsheetApp.getUi().alert('Error flushing config cache: ' + e.message);
+  }
 }
 
 /**
@@ -182,11 +260,17 @@ function flushConfigCache() {
  * @returns {string} New unique ID.
  */
 function getNextId() {
-  const props = PropertiesService.getDocumentProperties();
-  let next = parseInt(props.getProperty(PROP_NEXT_ID) || "1");
-  const result = `TID-${next.toString().padStart(6, '0')}`;
-  props.setProperty(PROP_NEXT_ID, (next+1).toString());
-  return result;
+  try {
+    const props = PropertiesService.getDocumentProperties();
+    let next = parseInt(props.getProperty(PROP_NEXT_ID) || "1");
+    const result = `TID-${next.toString().padStart(6, '0')}`;
+    props.setProperty(PROP_NEXT_ID, (next+1).toString());
+    return result;
+  } catch (e) {
+    logError('getNextId', '', e.message);
+    SpreadsheetApp.getUi().alert('Error generating next ID: ' + e.message);
+    return '';
+  }
 }
 
 /**
@@ -195,13 +279,18 @@ function getNextId() {
  * @param {string} message - Status message or timestamp.
  */
 function updateStatusMessage(field, message) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const status = ss.getSheetByName(SHEET_STATUS);
-  assert(status, 'Status sheet missing');
-  // find column for field
-  let col = STATUS_HEADERS.indexOf(field);
-  if (col === -1) throw new Error('Invalid status field: ' + field);
-  status.getRange(2, col+1).setValue(message);
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const status = ss.getSheetByName(SHEET_STATUS);
+    assert(status, 'Status sheet missing');
+    // find column for field
+    let col = STATUS_HEADERS.indexOf(field);
+    if (col === -1) throw new Error('Invalid status field: ' + field);
+    status.getRange(2, col+1).setValue(message);
+  } catch (e) {
+    logError('updateStatusMessage', field, e.message);
+    SpreadsheetApp.getUi().alert('Error updating status message: ' + e.message);
+  }
 }
 
 /**

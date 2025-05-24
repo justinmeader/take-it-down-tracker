@@ -7,6 +7,7 @@
  * Logs the result and shows a batch result modal.
  */
 function downloadMediaToDrive() {
+  try {
   const {
     SHEET_TRACKER, TRACKER_COL, STATUS_REMOVED, SETTING_BATCH_SIZE, SETTING_DOWNLOAD_ROOT,
     STATUS_HEADERS, assert, readConfig, updateStatusMessage
@@ -17,7 +18,8 @@ function downloadMediaToDrive() {
   const tracker = ss.getSheetByName(SHEET_TRACKER);
   assert(tracker, 'Tracker sheet missing');
   const data = tracker.getDataRange().getValues();
-  const headers = data[0];
+  const { TRACKER_HEADERS } = getGlobals();
+const headers = TRACKER_HEADERS;
   const rows = data.slice(1);
 
   const rootName = cfg[SETTING_DOWNLOAD_ROOT];
@@ -33,11 +35,17 @@ function downloadMediaToDrive() {
    * @returns {GoogleAppsScript.Drive.Folder}
    */
   function getRootFolder() {
-    if (!rootFolder) {
-      let q = DriveApp.getFoldersByName(rootName);
-      rootFolder = q.hasNext() ? q.next() : DriveApp.createFolder(rootName);
+    try {
+      if (!rootFolder) {
+        let q = DriveApp.getFoldersByName(rootName);
+        rootFolder = q.hasNext() ? q.next() : DriveApp.createFolder(rootName);
+      }
+      return rootFolder;
+    } catch (e) {
+      logError('downloadMediaToDrive.getRootFolder', '', e.message);
+      SpreadsheetApp.getUi().alert('Error getting root folder: ' + e.message);
+      return null;
     }
-    return rootFolder;
   }
   /**
    * Gets or creates a subfolder for a given domain (cached).
@@ -45,12 +53,19 @@ function downloadMediaToDrive() {
    * @returns {GoogleAppsScript.Drive.Folder}
    */
   function getDomainFolder(domain) {
-    if (!domainFolders[domain]) {
-      let root = getRootFolder();
-      let f = root.getFoldersByName(domain);
-      domainFolders[domain] = f.hasNext() ? f.next() : root.createFolder(domain);
+    try {
+      if (!domainFolders[domain]) {
+        let root = getRootFolder();
+        if (!root) throw new Error('No root folder');
+        let f = root.getFoldersByName(domain);
+        domainFolders[domain] = f.hasNext() ? f.next() : root.createFolder(domain);
+      }
+      return domainFolders[domain];
+    } catch (e) {
+      logError('downloadMediaToDrive.getDomainFolder', domain, e.message);
+      SpreadsheetApp.getUi().alert('Error getting domain folder: ' + e.message);
+      return null;
     }
-    return domainFolders[domain];
   }
 
   let processed = 0, saved = 0, skipped = 0, failed = 0;
@@ -118,6 +133,7 @@ function downloadMediaToDrive() {
  * Reads interval (minutes) from Settings.
  */
 function startScheduledDownload() {
+  try {
   stopScheduledDownload(); // idempotent: remove any existing
   const {SETTING_DOWNLOAD_INTERVAL, readConfig} = getGlobals();
   const cfg = readConfig();
@@ -126,12 +142,17 @@ function startScheduledDownload() {
     .everyMinutes(cfg[SETTING_DOWNLOAD_INTERVAL])
     .create();
   SpreadsheetApp.getUi().alert('Scheduled download trigger created.');
+  } catch (e) {
+    logError('startScheduledDownload', '', e.message);
+    SpreadsheetApp.getUi().alert('Error starting scheduled download: ' + e.message);
+  }
 }
 
 /**
  * Stops all scheduled download triggers.
  */
 function stopScheduledDownload() {
+  try {
   const triggers = ScriptApp.getProjectTriggers();
   let removed = 0;
   for (let t of triggers) {
@@ -141,4 +162,8 @@ function stopScheduledDownload() {
   }
   if (removed)
     SpreadsheetApp.getUi().alert('Scheduled download trigger(s) removed.');
+  } catch (e) {
+    logError('stopScheduledDownload', '', e.message);
+    SpreadsheetApp.getUi().alert('Error stopping scheduled download: ' + e.message);
+  }
 }

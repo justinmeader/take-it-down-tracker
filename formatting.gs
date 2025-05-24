@@ -5,6 +5,7 @@
  * Adds dropdowns to known columns in Tracker and Inbox.
  */
 function applyAllValidationAndFormatting() {
+  try {
     const {
       SHEET_INBOX, SHEET_TRACKER, SHEET_ARCHIVE, SHEET_DIRECTORY,
       SHEET_SEARCH_DEINDEX, SHEET_TRIAGE, SHEET_STATUS, SHEET_LOGS,
@@ -13,7 +14,7 @@ function applyAllValidationAndFormatting() {
       SEARCH_DEINDEX_HEADERS, TRIAGE_HEADERS, STATUS_HEADERS, LOGS_HEADERS, SETTINGS_HEADERS,
       assert
     } = getGlobals();
-  
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     /**
      * All core sheets and their expected headers.
@@ -31,7 +32,7 @@ function applyAllValidationAndFormatting() {
       [SHEET_SETTINGS, SETTINGS_HEADERS],
       [SHEET_COUNTRY_CODES, ['Country Code', 'Country Name']]
     ];
-  
+
     sheets.forEach(([name, headers]) => {
       const sheet = ss.getSheetByName(name);
       if (!sheet) return;
@@ -59,5 +60,9 @@ function applyAllValidationAndFormatting() {
         SheetUtils.addDropdown(sheet, headers.indexOf('Reviewed?'), ['TRUE', 'FALSE']);
       }
     });
+  } catch (e) {
+    logError('applyAllValidationAndFormatting', '', e.message);
+    SpreadsheetApp.getUi().alert('Error applying validation and formatting: ' + e.message);
   }
+}
   

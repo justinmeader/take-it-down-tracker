@@ -34,26 +34,30 @@ function goToStatusSheet() {
  * Shows a dialog for copying all URLs for a given domain from Tracker.
  */
 function showCopyUrlsForDomainDialog() {
-  const { SHEET_TRACKER, TRACKER_COL, assert } = getGlobals();
-  const ui = SpreadsheetApp.getUi();
-  const domain = ui.prompt('Enter domain to filter URLs:').getResponseText();
-  if (!domain) return;
+  try {
+    const { SHEET_TRACKER, TRACKER_COL, assert } = getGlobals();
+    const ui = SpreadsheetApp.getUi();
+    const domain = ui.prompt('Enter domain to filter URLs:').getResponseText();
+    if (!domain) return;
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tracker = ss.getSheetByName(SHEET_TRACKER);
-  assert(tracker, 'Tracker sheet missing');
-  const data = tracker.getDataRange().getValues().slice(1);
-  const urls = data.filter(row => (row[TRACKER_COL.Domain] || '').toLowerCase() === domain.toLowerCase())
-    .map(row => row[TRACKER_COL.URL])
-    .join('\n');
-  if (!urls) {
-    ui.alert(`No URLs found for domain: ${domain}`);
-    return;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tracker = ss.getSheetByName(SHEET_TRACKER);
+    assert(tracker, 'Tracker sheet missing');
+    const data = tracker.getDataRange().getValues().slice(1);
+    const urls = data.filter(row => (row[TRACKER_COL.Domain] || '').toLowerCase() === domain.toLowerCase())
+      .map(row => row[TRACKER_COL.URL])
+      .join('\n');
+    if (!urls) {
+      ui.alert(`No URLs found for domain: ${domain}`);
+      return;
+    }
+    ui.showModalDialog(
+      HtmlService.createHtmlOutput(`<textarea style="width:100%;height:300px">${urls}</textarea>`).setWidth(500).setHeight(350),
+      `URLs for ${domain}`
+    );
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Error in showCopyUrlsForDomainDialog: ' + e.message);
   }
-  ui.showModalDialog(
-    HtmlService.createHtmlOutput(`<textarea style="width:100%;height:300px">${urls}</textarea>`).setWidth(500).setHeight(350),
-    `URLs for ${domain}`
-  );
 }
 
 /**
@@ -117,23 +121,31 @@ function showBatchResultModal(title, summary, details) {
  * Menu wrapper for pruneLogs.
  */
 function pruneLogsMenu() {
-  pruneLogs();
-  SpreadsheetApp.getUi().alert('Logs pruned.');
+  try {
+    pruneLogs();
+    SpreadsheetApp.getUi().alert('Logs pruned.');
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Error pruning logs: ' + e.message);
+  }
 }
 
 /**
  * Prune the Archive sheet to the last 1000 entries.
  */
 function pruneArchiveMenu() {
-  const { SHEET_ARCHIVE, assert } = getGlobals();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const archive = ss.getSheetByName(SHEET_ARCHIVE);
-  assert(archive, 'Archive sheet missing');
-  const lastRow = archive.getLastRow();
-  if (lastRow > 1001) {
-    archive.deleteRows(2, lastRow - 1001);
-    SpreadsheetApp.getUi().alert('Archive pruned.');
-  } else {
-    SpreadsheetApp.getUi().alert('Archive already within limits.');
+  try {
+    const { SHEET_ARCHIVE, assert } = getGlobals();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const archive = ss.getSheetByName(SHEET_ARCHIVE);
+    assert(archive, 'Archive sheet missing');
+    const lastRow = archive.getLastRow();
+    if (lastRow > 1001) {
+      archive.deleteRows(2, lastRow - 1001);
+      SpreadsheetApp.getUi().alert('Archive pruned.');
+    } else {
+      SpreadsheetApp.getUi().alert('Archive already within limits.');
+    }
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Error pruning archive: ' + e.message);
   }
 }

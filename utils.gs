@@ -88,10 +88,16 @@ var SheetUtils = {
    * @returns {GoogleAppsScript.Spreadsheet.Sheet}
    */
   ensureSheet: function(name) {
-    let ss = SpreadsheetApp.getActiveSpreadsheet();
-    let s = ss.getSheetByName(name);
-    if (!s) s = ss.insertSheet(name);
-    return s;
+    try {
+      let ss = SpreadsheetApp.getActiveSpreadsheet();
+      let s = ss.getSheetByName(name);
+      if (!s) s = ss.insertSheet(name);
+      return s;
+    } catch (e) {
+      logError('SheetUtils.ensureSheet', name, e.message);
+      SpreadsheetApp.getUi().alert('Error ensuring sheet: ' + e.message);
+      return null;
+    }
   },
 
   /**
@@ -100,8 +106,13 @@ var SheetUtils = {
    * @param {string[]} headers
    */
   clearAndHeader: function(sheet, headers) {
-    sheet.clear();
-    sheet.appendRow(headers);
+    try {
+      sheet.clear();
+      sheet.appendRow(headers);
+    } catch (e) {
+      logError('SheetUtils.clearAndHeader', '', e.message);
+      SpreadsheetApp.getUi().alert('Error clearing sheet or setting headers: ' + e.message);
+    }
   },
 
   /**
@@ -110,8 +121,13 @@ var SheetUtils = {
    * @param {number[]} widths - Width in pixels for each column.
    */
   setColumnWidths: function(sheet, widths) {
-    for (let i=0; i<widths.length; ++i) {
-      sheet.setColumnWidth(i+1, widths[i]);
+    try {
+      for (let i=0; i<widths.length; ++i) {
+        sheet.setColumnWidth(i+1, widths[i]);
+      }
+    } catch (e) {
+      logError('SheetUtils.setColumnWidths', '', e.message);
+      SpreadsheetApp.getUi().alert('Error setting column widths: ' + e.message);
     }
   },
 
@@ -121,10 +137,15 @@ var SheetUtils = {
    * @param {number} headerRow
    */
   protectRange: function(sheet, headerRow) {
-    let r = sheet.getRange(headerRow, 1, 1, sheet.getLastColumn());
-    let p = r.protect();
-    p.setDescription("Header Row");
-    p.removeEditors(p.getEditors());
+    try {
+      let r = sheet.getRange(headerRow, 1, 1, sheet.getLastColumn());
+      let p = r.protect();
+      p.setDescription("Header Row");
+      p.removeEditors(p.getEditors());
+    } catch (e) {
+      logError('SheetUtils.protectRange', '', e.message);
+      SpreadsheetApp.getUi().alert('Error protecting header row: ' + e.message);
+    }
   },
 
   /**
@@ -134,12 +155,17 @@ var SheetUtils = {
    * @param {string[]} options
    */
   addDropdown: function(sheet, col, options) {
-    let range = sheet.getRange(2, col+1, sheet.getMaxRows()-1);
-    let rule = SpreadsheetApp.newDataValidation()
-      .requireValueInList(options, true)
-      .setAllowInvalid(false)
-      .build();
-    range.setDataValidation(rule);
+    try {
+      let range = sheet.getRange(2, col+1, sheet.getMaxRows()-1);
+      let rule = SpreadsheetApp.newDataValidation()
+        .requireValueInList(options, true)
+        .setAllowInvalid(false)
+        .build();
+      range.setDataValidation(rule);
+    } catch (e) {
+      logError('SheetUtils.addDropdown', '', e.message);
+      SpreadsheetApp.getUi().alert('Error adding dropdown: ' + e.message);
+    }
   }
 };
 

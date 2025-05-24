@@ -6,6 +6,7 @@
  * Logs to Change Log for each archived row.
  */
 function archiveRemovedRows() {
+  try {
   const {
     SHEET_TRACKER, SHEET_ARCHIVE, TRACKER_COL, STATUS_REMOVED, STATUS_HEADERS, assert, updateStatusMessage
   } = getGlobals();

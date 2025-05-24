@@ -94,16 +94,16 @@ function ensureChangeLogSheet() {
   const { assert } = getGlobals();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Change Log');
-  const HEADERS = ['Timestamp', 'Action', 'Tracker ID', 'Domain', 'URL', 'Message'];
+  const { CHANGE_LOG_HEADERS } = getGlobals();
   if (!sheet) {
     sheet = ss.insertSheet('Change Log');
-    sheet.appendRow(HEADERS);
+    sheet.appendRow(CHANGE_LOG_HEADERS);
   } else {
     // If sheet exists but headers are wrong, fix them
-    const currHeaders = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
-    for (let i = 0; i < HEADERS.length; i++) {
-      if (!currHeaders[i] || currHeaders[i] !== HEADERS[i]) {
-        sheet.getRange(1, i + 1).setValue(HEADERS[i]);
+    const currHeaders = sheet.getRange(1, 1, 1, CHANGE_LOG_HEADERS.length).getValues()[0];
+    for (let i = 0; i < CHANGE_LOG_HEADERS.length; i++) {
+      if (!currHeaders[i] || currHeaders[i] !== CHANGE_LOG_HEADERS[i]) {
+        sheet.getRange(1, i + 1).setValue(CHANGE_LOG_HEADERS[i]);
       }
     }
   }
