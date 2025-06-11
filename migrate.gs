@@ -9,11 +9,15 @@
 
 function runMigrations() {
   try {
-  migrateSheetNamesAndLayouts();
-  migrateColumnNames();
-  migrateDomainTags();
-  migrateMediaType();
-  migrateRemovedToStatus();
+    migrateSheetNamesAndLayouts();
+    migrateColumnNames();
+    migrateDomainTags();
+    migrateMediaType();
+    migrateRemovedToStatus();
+  } catch (e) {
+    logError('runMigrations', '', e.message);
+    SpreadsheetApp.getUi().alert('Error running migrations: ' + e.message);
+  }
 }
 
 /**
@@ -213,30 +217,74 @@ function migrateMediaType() {
     const mainSheet = ss.getSheetByName('Take It Down Tracker');
     if (!mainSheet) return;
 
-    const { TRACKER_HEADERS } = getGlobals();
     const header = mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0];
     const urlIndex = header.indexOf('URL');
     const mediaTypeIndex = header.indexOf('Media Type');
 
     if (urlIndex === -1 || mediaTypeIndex === -1) return;
 
-
-  if (removedIndex !== -1 && statusIndex !== -1) {
     const numRows = mainSheet.getLastRow() - 1;
     if (numRows > 0) {
-      const removedValues = mainSheet.getRange(2, removedIndex + 1, numRows).getValues();
-      const statusValues = mainSheet.getRange(2, statusIndex + 1, numRows).getValues();
+      const urlValues = mainSheet.getRange(2, urlIndex + 1, numRows).getValues();
+      const mediaTypes = mainSheet.getRange(2, mediaTypeIndex + 1, numRows).getValues();
 
       let changed = false;
       for (let i = 0; i < numRows; i++) {
-        if (removedValues[i][0] && !statusValues[i][0]) {
-          statusValues[i][0] = removedValues[i][0];
+        if (!mediaTypes[i][0] && urlValues[i][0]) {
+          const url = urlValues[i][0];
+          if (/\.(jpg|jpeg|png|gif|bmp|webp|tiff?)$/i.test(url)) {
+            mediaTypes[i][0] = 'Image';
+          } else if (/\.(mp4|mov|wmv|flv|avi|webm|mkv|m4v)$/i.test(url)) {
+            mediaTypes[i][0] = 'Video';
+          } else {
+            mediaTypes[i][0] = 'Page';
+          }
           changed = true;
         }
       }
       if (changed) {
-        mainSheet.getRange(2, statusIndex + 1, numRows).setValues(statusValues);
+        mainSheet.getRange(2, mediaTypeIndex + 1, numRows).setValues(mediaTypes);
       }
     }
+  } catch (e) {
+    logError('migrateMediaType', '', e.message);
+    SpreadsheetApp.getUi().alert('Error in migrateMediaType: ' + e.message);
+  }
+}
+
+/**
+ * Migrate Removed column data to Current Status.
+ */
+function migrateRemovedToStatus() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const mainSheet = ss.getSheetByName('Take It Down Tracker');
+    if (!mainSheet) return;
+
+    const header = mainSheet.getRange(1, 1, 1, mainSheet.getLastColumn()).getValues()[0];
+    const statusIndex = header.indexOf('Current Status');
+    const removedIndex = header.indexOf('Removed');
+
+    if (removedIndex !== -1 && statusIndex !== -1) {
+      const numRows = mainSheet.getLastRow() - 1;
+      if (numRows > 0) {
+        const removedValues = mainSheet.getRange(2, removedIndex + 1, numRows).getValues();
+        const statusValues = mainSheet.getRange(2, statusIndex + 1, numRows).getValues();
+
+        let changed = false;
+        for (let i = 0; i < numRows; i++) {
+          if (removedValues[i][0] && !statusValues[i][0]) {
+            statusValues[i][0] = removedValues[i][0];
+            changed = true;
+          }
+        }
+        if (changed) {
+          mainSheet.getRange(2, statusIndex + 1, numRows).setValues(statusValues);
+        }
+      }
+    }
+  } catch (e) {
+    logError('migrateRemovedToStatus', '', e.message);
+    SpreadsheetApp.getUi().alert('Error in migrateRemovedToStatus: ' + e.message);
   }
 }
